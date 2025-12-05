@@ -332,27 +332,37 @@ function updatePacMan() {
   // Move along the current edge; snap to the next node when reached
   if (pacMan.dir.x !== 0 && canTraverseEdge(pacMan.row, pacMan.col, pacMan.dir)) {
     let targetCol = pacMan.col + pacMan.dir.x;
+    let isWrapping = false;
 
     // Handle tunnel wrap-around BEFORE calculating target position
     const TUNNEL_ROW = 14;
     if (pacMan.row === TUNNEL_ROW) {
       if (targetCol < 0) {
         targetCol = COLS - 1; // Wrap to right edge
+        isWrapping = true;
       } else if (targetCol >= COLS) {
         targetCol = 0; // Wrap to left edge
+        isWrapping = true;
       }
     }
 
     const targetX = pelletAlignedPos(targetCol, pacMan.row).x;
-    const deltaX = pacMan.dir.x * step;
 
-    if ((pacMan.dir.x > 0 && pacMan.x + deltaX >= targetX) ||
-        (pacMan.dir.x < 0 && pacMan.x + deltaX <= targetX)) {
+    // When wrapping, teleport immediately; otherwise move incrementally
+    if (isWrapping) {
       pacMan.x = targetX;
       pacMan.col = targetCol;
       consumePelletAt(pacMan.row, pacMan.col);
     } else {
-      pacMan.x += deltaX;
+      const deltaX = pacMan.dir.x * step;
+      if ((pacMan.dir.x > 0 && pacMan.x + deltaX >= targetX) ||
+          (pacMan.dir.x < 0 && pacMan.x + deltaX <= targetX)) {
+        pacMan.x = targetX;
+        pacMan.col = targetCol;
+        consumePelletAt(pacMan.row, pacMan.col);
+      } else {
+        pacMan.x += deltaX;
+      }
     }
   } else if (pacMan.dir.y !== 0 && canTraverseEdge(pacMan.row, pacMan.col, pacMan.dir)) {
     const targetRow = pacMan.row + pacMan.dir.y;
