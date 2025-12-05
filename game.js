@@ -91,9 +91,22 @@ const pelletsToRemove = [
   [14, 0], [14, 28]
 ];
 
+const powerPelletPositions = [
+  [1, 1],
+  [1, 26],
+  [29, 1],
+  [29, 26]
+];
+
 for (const [r, c] of pelletsToRemove) {
   if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
     pelletMap[r][c] = 0;
+  }
+}
+
+for (const [r, c] of powerPelletPositions) {
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    pelletMap[r][c] = 2;
   }
 }
 
@@ -118,10 +131,12 @@ const pacMan = {
   dir: { x: 0, y: 0 },
   nextDir: { x: 0, y: 0 },
   speed: 2,
-  radius: TILE_SIZE * 0.4,
+  radius: TILE_SIZE * 0.6,
   x: undefined,
   y: undefined,
-  color: 'yellow'
+  color: 'yellow',
+  mouthOpen: false,
+  lastMouthToggle: 0
 };
 
 let score = 0;
@@ -257,28 +272,26 @@ function drawMaze() {
 
 function drawPellets() {
   const pelletRadius = TILE_SIZE * 0.18;
-  // const powerRadius  = TILE_SIZE * 0.35; // Commented out for now
+  const powerRadius  = TILE_SIZE * 0.3;
+  const now = performance.now();
 
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const type = pelletMap[r][c];
       if (type === 0) continue;
 
-      let x = c * TILE_SIZE + TILE_SIZE; // Bottom-right X
-      let y = r * TILE_SIZE + TILE_SIZE; // Bottom-right Y
+      let x = c * TILE_SIZE + TILE_SIZE; // Bottom-right alignment
+      let y = r * TILE_SIZE + TILE_SIZE; // Bottom-right alignment
       let radius = pelletRadius;
 
-      // if (type === 2) { // Power pellets commented out for now
-      //   x = c * TILE_SIZE + TILE_SIZE / 2;
-      //   y = r * TILE_SIZE + TILE_SIZE / 2;
-      //   radius = powerRadius;
-      // } else {
-      //   // Normal pellet, already set to bottom-right
-      // }
+      if (type === 2) {
+        const pulse = 1 + 0.08 * Math.sin(now * 0.006);
+        radius = powerRadius * pulse;
+      }
 
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = 'yellow';
+      ctx.fillStyle = 'white';
       ctx.fill();
       ctx.closePath();
     }
@@ -390,8 +403,37 @@ function updatePacMan() {
 }
 
 function drawPacMan() {
+  const moving = pacMan.dir.x !== 0 || pacMan.dir.y !== 0;
+  const now = performance.now();
+  const TOGGLE_INTERVAL_MS = 150;
+
+  if (!moving) {
+    pacMan.mouthOpen = false;
+    pacMan.lastMouthToggle = now;
+  } else if (now - pacMan.lastMouthToggle >= TOGGLE_INTERVAL_MS) {
+    pacMan.mouthOpen = !pacMan.mouthOpen;
+    pacMan.lastMouthToggle = now;
+  }
+
+  const angleForDir = (() => {
+    if (pacMan.dir.x === 1) return 0; // right
+    if (pacMan.dir.x === -1) return Math.PI; // left
+    if (pacMan.dir.y === -1) return -Math.PI / 2; // up
+    if (pacMan.dir.y === 1) return Math.PI / 2; // down
+    return 0; // default facing right when idle
+  })();
+
+  const mouthWedge = Math.PI / 4; // 45° missing slice
+
   ctx.beginPath();
-  ctx.arc(pacMan.x, pacMan.y, pacMan.radius, 0, Math.PI * 2);
+  if (pacMan.mouthOpen) {
+    const start = angleForDir + mouthWedge / 2;
+    const end = angleForDir - mouthWedge / 2 + Math.PI * 2;
+    ctx.moveTo(pacMan.x, pacMan.y);
+    ctx.arc(pacMan.x, pacMan.y, pacMan.radius, start, end);
+  } else {
+    ctx.arc(pacMan.x, pacMan.y, pacMan.radius, 0, Math.PI * 2);
+  }
   ctx.fillStyle = pacMan.color;
   ctx.fill();
   ctx.closePath();
