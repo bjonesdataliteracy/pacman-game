@@ -306,6 +306,22 @@ function updatePacMan() {
   const atNode =
     Math.abs(pacMan.x - aligned.x) < EPS && Math.abs(pacMan.y - aligned.y) < EPS;
 
+  // TUNNEL TELEPORT: If at edge of tunnel row, teleport to other side
+  const TUNNEL_ROW = 14;
+  if (atNode && pacMan.row === TUNNEL_ROW) {
+    if (pacMan.col === 0 && pacMan.dir.x === -1) {
+      // At left edge, moving left → teleport to right edge
+      pacMan.col = COLS - 1;
+      pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
+      consumePelletAt(pacMan.row, pacMan.col);
+    } else if (pacMan.col === COLS - 1 && pacMan.dir.x === 1) {
+      // At right edge, moving right → teleport to left edge
+      pacMan.col = 0;
+      pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
+      consumePelletAt(pacMan.row, pacMan.col);
+    }
+  }
+
   // Handle direction changes only when centered on a pellet node
   if (atNode) {
     pacMan.x = aligned.x;
@@ -331,38 +347,17 @@ function updatePacMan() {
 
   // Move along the current edge; snap to the next node when reached
   if (pacMan.dir.x !== 0 && canTraverseEdge(pacMan.row, pacMan.col, pacMan.dir)) {
-    let targetCol = pacMan.col + pacMan.dir.x;
-    let isWrapping = false;
-
-    // Handle tunnel wrap-around BEFORE calculating target position
-    const TUNNEL_ROW = 14;
-    if (pacMan.row === TUNNEL_ROW) {
-      if (targetCol < 0) {
-        targetCol = COLS - 1; // Wrap to right edge
-        isWrapping = true;
-      } else if (targetCol >= COLS) {
-        targetCol = 0; // Wrap to left edge
-        isWrapping = true;
-      }
-    }
-
+    const targetCol = pacMan.col + pacMan.dir.x;
     const targetX = pelletAlignedPos(targetCol, pacMan.row).x;
+    const deltaX = pacMan.dir.x * step;
 
-    // When wrapping, teleport immediately; otherwise move incrementally
-    if (isWrapping) {
+    if ((pacMan.dir.x > 0 && pacMan.x + deltaX >= targetX) ||
+        (pacMan.dir.x < 0 && pacMan.x + deltaX <= targetX)) {
       pacMan.x = targetX;
       pacMan.col = targetCol;
       consumePelletAt(pacMan.row, pacMan.col);
     } else {
-      const deltaX = pacMan.dir.x * step;
-      if ((pacMan.dir.x > 0 && pacMan.x + deltaX >= targetX) ||
-          (pacMan.dir.x < 0 && pacMan.x + deltaX <= targetX)) {
-        pacMan.x = targetX;
-        pacMan.col = targetCol;
-        consumePelletAt(pacMan.row, pacMan.col);
-      } else {
-        pacMan.x += deltaX;
-      }
+      pacMan.x += deltaX;
     }
   } else if (pacMan.dir.y !== 0 && canTraverseEdge(pacMan.row, pacMan.col, pacMan.dir)) {
     const targetRow = pacMan.row + pacMan.dir.y;
