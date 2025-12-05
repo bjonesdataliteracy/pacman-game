@@ -173,7 +173,15 @@ function collidesWithWall(x, y) {
 
 // Checks movement along pellet-aligned edges (requires four open tiles around the edge)
 function canTraverseEdge(row, col, dir) {
+  // Tunnel rows allow wrapping, so allow horizontal movement even at edges
+  const TUNNEL_ROWS = [13, 14];
+  const isTunnelRow = TUNNEL_ROWS.includes(row);
+
   if (dir.x === 1) {
+    // On tunnel rows, allow moving right even at the right edge
+    if (isTunnelRow && col >= COLS - 2) {
+      return isOpenTile(row, col) && isOpenTile(row + 1, col);
+    }
     return (
       isOpenTile(row, col) &&
       isOpenTile(row + 1, col) &&
@@ -185,6 +193,10 @@ function canTraverseEdge(row, col, dir) {
     );
   }
   if (dir.x === -1) {
+    // On tunnel rows, allow moving left even at the left edge
+    if (isTunnelRow && col <= 1) {
+      return isOpenTile(row, col) && isOpenTile(row + 1, col);
+    }
     return (
       isOpenTile(row, col) &&
       isOpenTile(row + 1, col) &&
@@ -344,9 +356,9 @@ function updatePacMan() {
     }
   }
 
-  // Handle tunnel wrap-around on row 14 (0-indexed row 13)
-  const TUNNEL_ROW = 13;
-  if (pacMan.row === TUNNEL_ROW) {
+  // Handle tunnel wrap-around on tunnel rows (0-indexed rows 13 and 14)
+  const TUNNEL_ROWS = [13, 14];
+  if (TUNNEL_ROWS.includes(pacMan.row)) {
     // Wrap from left edge to right edge
     if (pacMan.col < 0 && pacMan.dir.x < 0) {
       pacMan.col = COLS - 1;
