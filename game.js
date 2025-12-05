@@ -179,7 +179,8 @@ function canTraverseEdge(row, col, dir) {
 
   if (dir.x === 1) {
     // On tunnel row, allow moving right even at the right edge (for wrapping)
-    if (isTunnelRow && col >= COLS - 2) {
+    // Need to allow movement from col 27 -> 28 -> teleport, so check from col 26 onwards
+    if (isTunnelRow && col >= COLS - 3) {
       // Just check current position is valid, allow going off-screen
       return isOpenTile(row, col) && isOpenTile(row + 1, col);
     }
@@ -195,7 +196,7 @@ function canTraverseEdge(row, col, dir) {
   }
   if (dir.x === -1) {
     // On tunnel row, allow moving left even at the left edge (for wrapping)
-    if (isTunnelRow && col <= 1) {
+    if (isTunnelRow && col <= 2) {
       // Just check current position is valid, allow going off-screen
       return isOpenTile(row, col) && isOpenTile(row + 1, col);
     }
