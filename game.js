@@ -85,7 +85,10 @@ const pelletsToRemove = [
   [11, 24], [11, 25], [11, 26],
 
   // Enclosed wall bottom right
-  [17, 24], [17, 25], [17, 26]
+  [17, 24], [17, 25], [17, 26],
+
+  // Tunnel edges (skipped during teleport)
+  [14, 0], [14, 28]
 ];
 
 for (const [r, c] of pelletsToRemove) {
@@ -310,21 +313,14 @@ function updatePacMan() {
   // TUNNEL TELEPORT: If at edge of tunnel row, teleport to other side
   const TUNNEL_ROW = 14;
   if (atNode && pacMan.row === TUNNEL_ROW) {
-    // Debug logging
-    if (pacMan.col >= 26 || pacMan.col <= 2) {
-      console.log(`Tunnel check: col=${pacMan.col}, dir.x=${pacMan.dir.x}, COLS=${COLS}`);
-    }
-
-    // Teleport from col 1 moving left (since col 0 might not be reachable)
+    // Teleport from col 1 moving left
     if (pacMan.col === 1 && pacMan.dir.x === -1) {
-      console.log('TELEPORTING LEFT TO RIGHT (from col 1)');
       pacMan.col = COLS - 2;
       pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
       consumePelletAt(pacMan.row, pacMan.col);
     }
-    // Teleport from col 27 moving right (since col 28 is not being reached)
+    // Teleport from col 27 moving right
     else if (pacMan.col === COLS - 2 && pacMan.dir.x === 1) {
-      console.log('TELEPORTING RIGHT TO LEFT (from col 27)');
       pacMan.col = 1;
       pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
       consumePelletAt(pacMan.row, pacMan.col);
