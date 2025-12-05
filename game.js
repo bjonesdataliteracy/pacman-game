@@ -344,6 +344,21 @@ function updatePacMan() {
     }
   }
 
+  // Handle tunnel wrap-around on row 14 (0-indexed row 13)
+  const TUNNEL_ROW = 13;
+  if (pacMan.row === TUNNEL_ROW) {
+    // Wrap from left edge to right edge
+    if (pacMan.col < 0 && pacMan.dir.x < 0) {
+      pacMan.col = COLS - 1;
+      pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
+    }
+    // Wrap from right edge to left edge
+    else if (pacMan.col >= COLS && pacMan.dir.x > 0) {
+      pacMan.col = 0;
+      pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
+    }
+  }
+
   // Prevent overshooting into walls (especially moving right/down) by reverting to last safe spot
   if (collidesWithWall(pacMan.x, pacMan.y)) {
     pacMan.x = prevX;
