@@ -331,7 +331,18 @@ function updatePacMan() {
 
   // Move along the current edge; snap to the next node when reached
   if (pacMan.dir.x !== 0 && canTraverseEdge(pacMan.row, pacMan.col, pacMan.dir)) {
-    const targetCol = pacMan.col + pacMan.dir.x;
+    let targetCol = pacMan.col + pacMan.dir.x;
+
+    // Handle tunnel wrap-around BEFORE calculating target position
+    const TUNNEL_ROW = 14;
+    if (pacMan.row === TUNNEL_ROW) {
+      if (targetCol < 0) {
+        targetCol = COLS - 1; // Wrap to right edge
+      } else if (targetCol >= COLS) {
+        targetCol = 0; // Wrap to left edge
+      }
+    }
+
     const targetX = pelletAlignedPos(targetCol, pacMan.row).x;
     const deltaX = pacMan.dir.x * step;
 
@@ -355,21 +366,6 @@ function updatePacMan() {
       consumePelletAt(pacMan.row, pacMan.col);
     } else {
       pacMan.y += deltaY;
-    }
-  }
-
-  // Handle tunnel wrap-around on tunnel row (0-indexed row 14)
-  const TUNNEL_ROW = 14;
-  if (pacMan.row === TUNNEL_ROW) {
-    // Wrap from left edge to right edge
-    if (pacMan.col < 0 && pacMan.dir.x < 0) {
-      pacMan.col = COLS - 1;
-      pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
-    }
-    // Wrap from right edge to left edge
-    else if (pacMan.col >= COLS && pacMan.dir.x > 0) {
-      pacMan.col = 0;
-      pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
     }
   }
 
