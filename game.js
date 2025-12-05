@@ -315,16 +315,17 @@ function updatePacMan() {
       console.log(`Tunnel check: col=${pacMan.col}, dir.x=${pacMan.dir.x}, COLS=${COLS}`);
     }
 
-    if (pacMan.col === 0 && pacMan.dir.x === -1) {
-      // At left edge, moving left → teleport to right edge
-      console.log('TELEPORTING LEFT TO RIGHT');
-      pacMan.col = COLS - 1;
+    // Teleport from col 1 moving left (since col 0 might not be reachable)
+    if (pacMan.col === 1 && pacMan.dir.x === -1) {
+      console.log('TELEPORTING LEFT TO RIGHT (from col 1)');
+      pacMan.col = COLS - 2;
       pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
       consumePelletAt(pacMan.row, pacMan.col);
-    } else if (pacMan.col === COLS - 1 && pacMan.dir.x === 1) {
-      // At right edge, moving right → teleport to left edge
-      console.log('TELEPORTING RIGHT TO LEFT');
-      pacMan.col = 0;
+    }
+    // Teleport from col 27 moving right (since col 28 is not being reached)
+    else if (pacMan.col === COLS - 2 && pacMan.dir.x === 1) {
+      console.log('TELEPORTING RIGHT TO LEFT (from col 27)');
+      pacMan.col = 1;
       pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
       consumePelletAt(pacMan.row, pacMan.col);
     }
