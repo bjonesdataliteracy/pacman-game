@@ -310,13 +310,20 @@ function updatePacMan() {
   // TUNNEL TELEPORT: If at edge of tunnel row, teleport to other side
   const TUNNEL_ROW = 14;
   if (atNode && pacMan.row === TUNNEL_ROW) {
+    // Debug logging
+    if (pacMan.col >= 26 || pacMan.col <= 2) {
+      console.log(`Tunnel check: col=${pacMan.col}, dir.x=${pacMan.dir.x}, COLS=${COLS}`);
+    }
+
     if (pacMan.col === 0 && pacMan.dir.x === -1) {
       // At left edge, moving left → teleport to right edge
+      console.log('TELEPORTING LEFT TO RIGHT');
       pacMan.col = COLS - 1;
       pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
       consumePelletAt(pacMan.row, pacMan.col);
     } else if (pacMan.col === COLS - 1 && pacMan.dir.x === 1) {
       // At right edge, moving right → teleport to left edge
+      console.log('TELEPORTING RIGHT TO LEFT');
       pacMan.col = 0;
       pacMan.x = pelletAlignedPos(pacMan.col, pacMan.row).x;
       consumePelletAt(pacMan.row, pacMan.col);
