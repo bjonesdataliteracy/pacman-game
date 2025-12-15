@@ -1020,31 +1020,109 @@ function drawGhosts() {
       ctx.fill();
       ctx.closePath();
     } else {
+      const r = ghost.radius;
+      const left = ghost.x - r;
+      const right = ghost.x + r;
+      const bottomY = ghost.y + r;
+      const bumps = 3;
+      const bumpWidth = (2 * r) / bumps;
+      const bumpHeight = r * 0.3;
+
+      // Body with rounded head and wavy skirt
       ctx.beginPath();
-      ctx.arc(ghost.x, ghost.y, ghost.radius, 0, Math.PI * 2);
+      ctx.moveTo(left, bottomY);
+      for (let i = 0; i < bumps; i++) {
+        const startX = left + i * bumpWidth;
+        const midX = startX + bumpWidth / 2;
+        const endX = startX + bumpWidth;
+        ctx.quadraticCurveTo(midX, bottomY - bumpHeight, endX, bottomY);
+      }
+      ctx.lineTo(right, ghost.y);
+      ctx.arc(ghost.x, ghost.y, r, 0, Math.PI, true);
+      ctx.lineTo(left, ghost.y);
+      ctx.closePath();
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.closePath();
+
+      // Eyes
+      const eyeOffsetX = r * 0.35;
+      const eyeOffsetY = -r * 0.2;
+      const eyeRadiusX = r * 0.22;
+      const eyeRadiusY = r * 0.28;
+      const pupilRadius = r * 0.12;
+      const dir =
+        ghost.dir.x === 0 && ghost.dir.y === 0 ? { x: 1, y: 0 } : ghost.dir;
+      const mag = Math.hypot(dir.x, dir.y) || 1;
+      const pupilOffsetX = (dir.x / mag) * r * 0.12;
+      const pupilOffsetY = (dir.y / mag) * r * 0.12;
+
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.ellipse(
+        ghost.x - eyeOffsetX,
+        ghost.y + eyeOffsetY,
+        eyeRadiusX,
+        eyeRadiusY,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(
+        ghost.x + eyeOffsetX,
+        ghost.y + eyeOffsetY,
+        eyeRadiusX,
+        eyeRadiusY,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.fillStyle = 'black';
+      ctx.beginPath();
+      ctx.ellipse(
+        ghost.x - eyeOffsetX + pupilOffsetX,
+        ghost.y + eyeOffsetY + pupilOffsetY,
+        pupilRadius,
+        pupilRadius,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(
+        ghost.x + eyeOffsetX + pupilOffsetX,
+        ghost.y + eyeOffsetY + pupilOffsetY,
+        pupilRadius,
+        pupilRadius,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
     }
 
     if (DEBUG_SHOW_TARGETS) {
-      const target = getGhostTarget(ghost);
-      const targetPos = pelletAlignedPos(target.col, target.row);
+      // const target = getGhostTarget(ghost);
+      // const targetPos = pelletAlignedPos(target.col, target.row);
 
-      // Line to target
-      ctx.strokeStyle = ghost.color + '80'; // add alpha
-      ctx.beginPath();
-      ctx.moveTo(ghost.x, ghost.y);
-      ctx.lineTo(targetPos.x, targetPos.y);
-      ctx.stroke();
-      ctx.closePath();
+      // // Line to target
+      // ctx.strokeStyle = ghost.color + '80'; // add alpha
+      // ctx.beginPath();
+      // ctx.moveTo(ghost.x, ghost.y);
+      // ctx.lineTo(targetPos.x, targetPos.y);
+      // ctx.stroke();
+      // ctx.closePath();
 
-      // Target marker
-      ctx.beginPath();
-      ctx.arc(targetPos.x, targetPos.y, TILE_SIZE * 0.2, 0, Math.PI * 2);
-      ctx.fillStyle = ghost.color + '80';
-      ctx.fill();
-      ctx.closePath();
+      // // Target marker
+      // ctx.beginPath();
+      // ctx.arc(targetPos.x, targetPos.y, TILE_SIZE * 0.2, 0, Math.PI * 2);
+      // ctx.fillStyle = ghost.color + '80';
+      // ctx.fill();
+      // ctx.closePath();
     }
   }
 }
@@ -1081,12 +1159,12 @@ function gameLoop() {
   ctx.font = '20px Arial';
   ctx.fillText(`Score: ${score}`, 10, 25);
   if (DEBUG_SHOW_TARGETS) {
-    const modeLabel = modeTimer.current.toUpperCase();
-    const remaining =
-      modeTimer.currentIntervalIndex < modeTimer.intervals.length
-        ? Math.max(0, Math.ceil((modeTimer.intervals[modeTimer.currentIntervalIndex] - modeTimer.elapsed) / 100) / 10)
-        : '∞';
-    ctx.fillText(`Mode: ${modeLabel} (${remaining}s)`, 10, 50);
+    // const modeLabel = modeTimer.current.toUpperCase();
+    // const remaining =
+    //   modeTimer.currentIntervalIndex < modeTimer.intervals.length
+    //     ? Math.max(0, Math.ceil((modeTimer.intervals[modeTimer.currentIntervalIndex] - modeTimer.elapsed) / 100) / 10)
+    //     : '∞';
+    // ctx.fillText(`Mode: ${modeLabel} (${remaining}s)`, 10, 50);
   }
 
   // Lives display (do not count the current life)
