@@ -160,7 +160,7 @@ const pacMan = {
   radius: TILE_SIZE * 0.6,
   x: undefined,
   y: undefined,
-  color: 'yellow',
+  color: '#00e5a0',
   mouthOpen: false,
   lastMouthToggle: 0
 };
@@ -170,8 +170,8 @@ let gameStartTime = performance.now();
 // Basic ghost definitions (node-based positions mirror Pac-Man's system)
 const ghosts = [
   {
-    name: 'blinky',
-    color: 'red',
+    name: 'bias',
+    color: '#ff4444',
     startRow: 13,
     startCol: 13,
     row: 13,
@@ -189,8 +189,8 @@ const ghosts = [
     scatterTarget: { row: 1, col: 26 }
   },
   {
-    name: 'pinky',
-    color: 'pink',
+    name: 'null',
+    color: '#cc77ff',
     startRow: 13,
     startCol: 14,
     row: 13,
@@ -208,8 +208,8 @@ const ghosts = [
     scatterTarget: { row: 1, col: 1 }
   },
   {
-    name: 'inky',
-    color: 'cyan',
+    name: 'noise',
+    color: '#00cccc',
     startRow: 14,
     startCol: 13,
     row: 14,
@@ -227,8 +227,8 @@ const ghosts = [
     scatterTarget: { row: 30, col: 28 }
   },
   {
-    name: 'clyde',
-    color: 'orange',
+    name: 'outlier',
+    color: '#ff8800',
     startRow: 14,
     startCol: 14,
     row: 14,
@@ -430,9 +430,9 @@ function getGhostTarget(ghost) {
   }
 
   switch (ghost.name) {
-    case 'blinky':
+    case 'bias':
       return pacTarget;
-    case 'pinky': {
+    case 'null': {
       const dir = pacMan.dir;
       let target = pacTarget; // default when idle
       if (dir.x === 1) target = { row: pacMan.row, col: pacMan.col + 4 };
@@ -444,7 +444,7 @@ function getGhostTarget(ghost) {
       target.col = Math.min(Math.max(target.col, 0), COLS - 1);
       return target;
     }
-    case 'inky': {
+    case 'noise': {
       const dir = pacMan.dir;
       let intermediateRow = pacMan.row + dir.y * 2;
       let intermediateCol = pacMan.col + dir.x * 2;
@@ -452,7 +452,7 @@ function getGhostTarget(ghost) {
       intermediateRow = Math.min(Math.max(intermediateRow, 0), ROWS - 1);
       intermediateCol = Math.min(Math.max(intermediateCol, 0), COLS - 1);
 
-      const blinky = ghosts.find((g) => g.name === 'blinky');
+      const blinky = ghosts.find((g) => g.name === 'bias');
       const blinkyRow = blinky?.row ?? pacMan.row;
       const blinkyCol = blinky?.col ?? pacMan.col;
 
@@ -464,7 +464,7 @@ function getGhostTarget(ghost) {
 
       return { row: targetRow, col: targetCol };
     }
-    case 'clyde': {
+    case 'outlier': {
       const dr = pacMan.row - ghost.row;
       const dc = pacMan.col - ghost.col;
       const dist = Math.sqrt(dr * dr + dc * dc);
@@ -569,14 +569,14 @@ function checkGhostCollision() {
         const multiplier = Math.pow(2, powerMode.ghostsEaten); // 1,2,4,8
         score += basePoints * multiplier;
         powerMode.ghostsEaten = Math.min(powerMode.ghostsEaten + 1, 3);
-        console.log(`Pac-Man ate ${ghost.name}! +${basePoints * multiplier} points`);
+        console.log(`Data Muncher cleaned ${ghost.name}! +${basePoints * multiplier} points`);
       } else if (ghost.state === 'chase' || ghost.state === 'scatter') {
         if (gameState === 'playing') {
           gameState = 'dying';
           deathTimer = DEATH_ANIMATION_DURATION + DEATH_PAUSE_DURATION;
           lives = Math.max(0, lives - 1);
           pacMan.dir = { x: 0, y: 0 };
-          console.log('Pac-Man caught!');
+          console.log('Data corrupted!');
         }
       } else {
         // state === 'eaten' -> ignore
@@ -600,11 +600,11 @@ function handleDeath(deltaMs) {
 
 function handleWin() {
   if (gameState !== 'won') return;
-  const message = 'YOU WIN!';
-  const scoreMsg = `Score: ${score}`;
+  const message = 'DATASET COMPLETE!';
+  const scoreMsg = `Data Points: ${score}`;
   const restartMsg = 'Press SPACE to restart';
 
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = '#00e5a0';
   ctx.font = '48px Arial';
   const msgWidth = ctx.measureText(message).width;
   ctx.fillText(message, (canvas.width - msgWidth) / 2, canvas.height / 2 - 20);
@@ -620,11 +620,11 @@ function handleWin() {
 
 function handleGameOver() {
   if (gameState !== 'gameover') return;
-  const message = 'GAME OVER';
-  const scoreMsg = `Score: ${score}`;
+  const message = 'DATA CORRUPTED!';
+  const scoreMsg = `Data Points: ${score}`;
   const restartMsg = 'Press SPACE to restart';
 
-  ctx.fillStyle = 'red';
+  ctx.fillStyle = '#ff4444';
   ctx.font = '48px Arial';
   const msgWidth = ctx.measureText(message).width;
   ctx.fillText(message, (canvas.width - msgWidth) / 2, canvas.height / 2 - 20);
@@ -642,9 +642,9 @@ function handleGameOver() {
 function handleReady(deltaMs) {
   if (gameState !== 'ready') return;
   readyTimer -= deltaMs;
-  ctx.fillStyle = 'yellow';
+  ctx.fillStyle = '#00e5a0';
   ctx.font = '36px Arial';
-  const msg = 'READY!';
+  const msg = 'LOADING DATA...';
   const w = ctx.measureText(msg).width;
   ctx.fillText(msg, (canvas.width - w) / 2, canvas.height / 2);
 
@@ -683,8 +683,12 @@ function drawMaze() {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (wallMap[r][c] === 1) {
-        ctx.fillStyle = 'blue';
+        ctx.fillStyle = '#1a3a5c';
         ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        // Grid line effect
+        ctx.strokeStyle = '#2a5a8c';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
       }
     }
   }
@@ -711,7 +715,7 @@ function drawPellets() {
 
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = type === 2 ? '#ffd700' : '#88ddbb';
       ctx.fill();
       ctx.closePath();
     }
@@ -1157,7 +1161,7 @@ function gameLoop() {
 
   ctx.fillStyle = 'white';
   ctx.font = '20px Arial';
-  ctx.fillText(`Score: ${score}`, 10, 25);
+  ctx.fillText(`Data Points: ${score}`, 10, 25);
   if (DEBUG_SHOW_TARGETS) {
     // const modeLabel = modeTimer.current.toUpperCase();
     // const remaining =
@@ -1172,7 +1176,7 @@ function gameLoop() {
   const startX = 10;
   const startY = canvas.height - iconRadius - 6; // sit just above bottom edge without covering maze walls
   const spacing = 25;
-  ctx.fillStyle = 'yellow';
+  ctx.fillStyle = '#00e5a0';
   for (let i = 0; i < Math.max(0, lives - 1); i++) {
     const x = startX + i * spacing;
     ctx.beginPath();
