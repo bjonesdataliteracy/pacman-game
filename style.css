@@ -1,7 +1,7 @@
 body {
     margin: 0;
     overflow: hidden;
-    background-color: black;
+    background-color: #0a0e2a;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -11,5 +11,5 @@ body {
 
 canvas {
     display: block;
-    background-color: black;
+    background-color: #0a0e2a;
 }
