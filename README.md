@@ -1,4 +1,4 @@
-# Data Muncher
+# Pie Man
 
 A data-literacy-themed Pac-Man game! Navigate the data grid, collect data points, grab golden datasets to clean up dirty data, and avoid Bias, Null, Noise, and Outlier.
 
@@ -6,7 +6,7 @@ My first AI-assisted coding project — a personal side project to get my feet w
 
 ## Play It
 
-**[Play Data Muncher in your browser](https://bjonesdataliteracy.github.io/pacman-game/)** — no install needed!
+**[Play Pie Man in your browser](https://bjonesdataliteracy.github.io/pacman-game/)** — no install needed!
 
 ## How to Play
 - Use **arrow keys** to navigate the data grid
