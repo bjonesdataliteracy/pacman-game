@@ -1069,9 +1069,23 @@ function updateGhosts() {
     const atNode =
       Math.abs(ghost.x - aligned.x) < EPS && Math.abs(ghost.y - aligned.y) < EPS;
 
+    // TUNNEL TELEPORT for ghosts (same as Pac-Man)
+    const TUNNEL_ROW = 14;
+    if (atNode && ghost.row === TUNNEL_ROW) {
+      if (ghost.col === 1 && ghost.dir.x === -1) {
+        ghost.col = COLS - 2;
+        ghost.x = pelletAlignedPos(ghost.col, ghost.row).x;
+      } else if (ghost.col === COLS - 2 && ghost.dir.x === 1) {
+        ghost.col = 1;
+        ghost.x = pelletAlignedPos(ghost.col, ghost.row).x;
+      }
+    }
+
     if (atNode) {
-      ghost.x = aligned.x;
-      ghost.y = aligned.y;
+      // Recompute aligned position (may have changed due to tunnel teleport)
+      const newAligned = pelletAlignedPos(ghost.col, ghost.row);
+      ghost.x = newAligned.x;
+      ghost.y = newAligned.y;
 
       // If eaten and at home, reset to in-house and let exit routine handle re-entry
       if (ghost.state === 'eaten' && ghost.row === 14 && ghost.col === 14) {
