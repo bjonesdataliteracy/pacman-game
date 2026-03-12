@@ -191,7 +191,7 @@ const pacMan = {
   col: 14,
   dir: { x: 0, y: 0 },
   nextDir: { x: 0, y: 0 },
-  speed: 2,
+  speed: 120, // pixels per second
   radius: TILE_SIZE * 0.6,
   x: undefined,
   y: undefined,
@@ -215,7 +215,7 @@ const ghosts = [
     y: undefined,
     dir: { x: 0, y: 0 },
     nextDir: { x: 0, y: 0 },
-    speed: 2,
+    speed: 120, // pixels per second
     radius: TILE_SIZE * 0.6,
     state: 'in-house',
     leavingHouse: true,
@@ -234,7 +234,7 @@ const ghosts = [
     y: undefined,
     dir: { x: 0, y: 0 },
     nextDir: { x: 0, y: 0 },
-    speed: 2,
+    speed: 120, // pixels per second
     radius: TILE_SIZE * 0.6,
     state: 'in-house',
     leavingHouse: true,
@@ -253,7 +253,7 @@ const ghosts = [
     y: undefined,
     dir: { x: 0, y: 0 },
     nextDir: { x: 0, y: 0 },
-    speed: 2,
+    speed: 120, // pixels per second
     radius: TILE_SIZE * 0.6,
     state: 'in-house',
     leavingHouse: true,
@@ -272,7 +272,7 @@ const ghosts = [
     y: undefined,
     dir: { x: 0, y: 0 },
     nextDir: { x: 0, y: 0 },
-    speed: 2,
+    speed: 120, // pixels per second
     radius: TILE_SIZE * 0.6,
     state: 'in-house',
     leavingHouse: true,
@@ -832,7 +832,7 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-function updatePacMan() {
+function updatePacMan(deltaMs) {
   const aligned = pelletAlignedPos(pacMan.col, pacMan.row);
 
   if (pacMan.x === undefined) {
@@ -888,7 +888,7 @@ function updatePacMan() {
   if (pacMan.dir.x !== 0) pacMan.y = aligned.y; // Horizontal moves stay on row's bottom edge
   if (pacMan.dir.y !== 0) pacMan.x = aligned.x; // Vertical moves stay on column's right edge
 
-  const step = pacMan.speed;
+  const step = pacMan.speed * deltaMs / 1000;
 
   // Move along the current edge; snap to the next node when reached
   if (pacMan.dir.x !== 0 && canTraverseEdge(pacMan.row, pacMan.col, pacMan.dir)) {
@@ -1017,7 +1017,7 @@ function drawPacMan() {
   ctx.closePath();
 }
 
-function updateGhosts() {
+function updateGhosts(deltaMs) {
   for (const ghost of ghosts) {
     const aligned = pelletAlignedPos(ghost.col, ghost.row);
     const now = performance.now();
@@ -1113,7 +1113,7 @@ function updateGhosts() {
     if (ghost.dir.x !== 0) ghost.y = aligned.y;
     if (ghost.dir.y !== 0) ghost.x = aligned.x;
 
-    let step = ghost.speed;
+    let step = ghost.speed * deltaMs / 1000;
     if (ghost.state === 'frightened') step *= 0.5;
     else if (ghost.state === 'eaten') step *= 1.5;
 
@@ -1162,11 +1162,11 @@ function updateGhosts() {
 function drawDataBug(ghost, color, x, y, r) {
   // "Bug" = a database cylinder shape
   const name = ghost.name;
-  if (name === 'blinky') {
+  if (name === 'bias') {
     drawBarChartGhost(x, y, r, color, ghost.dir);
-  } else if (name === 'pinky') {
+  } else if (name === 'null') {
     drawDatabaseGhost(x, y, r, color, ghost.dir);
-  } else if (name === 'inky') {
+  } else if (name === 'noise') {
     drawScatterPlotGhost(x, y, r, color, ghost.dir);
   } else {
     drawCursorGhost(x, y, r, color, ghost.dir);
@@ -1400,7 +1400,7 @@ function drawGhosts() {
 
 function gameLoop() {
   const now = performance.now();
-  const deltaMs = now - (gameLoop.lastTime || now);
+  const deltaMs = Math.min(now - (gameLoop.lastTime || now), 50); // cap at 50ms to prevent huge jumps
   gameLoop.lastTime = now;
 
   // Handle ghost-eat freeze: pause all game updates, just render
@@ -1451,8 +1451,8 @@ function gameLoop() {
   drawPellets();
   drawBonusItem();
   if (gameState === 'playing') {
-    updateGhosts();
-    updatePacMan();
+    updateGhosts(deltaMs);
+    updatePacMan(deltaMs);
     checkGhostCollision();
   } else if (gameState === 'dying') {
     handleDeath(deltaMs);
