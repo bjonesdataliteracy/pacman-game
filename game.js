@@ -4,6 +4,40 @@ const ctx = canvas.getContext('2d');
 const TILE_SIZE = 24;
 const DEBUG_SHOW_TARGETS = true;
 const powerMode = { active: false, timer: 0, duration: 6000, ghostsEaten: 0 };
+
+// Ghost-eat freeze state
+const ghostEatFreeze = { active: false, timer: 0, duration: 500, points: 0, x: 0, y: 0 };
+
+// Auto-fit canvas to screen
+function resizeCanvas() {
+  const gameW = COLS ? COLS * TILE_SIZE : 696;
+  const gameH = ROWS ? ROWS * TILE_SIZE : 744;
+  const scaleX = window.innerWidth / gameW;
+  const scaleY = window.innerHeight / gameH;
+  const scale = Math.min(scaleX, scaleY);
+  canvas.style.width = (gameW * scale) + 'px';
+  canvas.style.height = (gameH * scale) + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+
+// Data emoji bonus items (fruit replacement)
+const DATA_EMOJIS = ['📊', '📈', '📉', '💹', '🗂️', '💾', '🗄️', '📋'];
+const bonusItem = {
+  active: false,
+  row: 0,
+  col: 0,
+  x: 0,
+  y: 0,
+  emoji: '',
+  points: 0,
+  timer: 0,
+  spawnTimer: 0,
+  pelletsAtLastSpawn: Infinity
+};
+const BONUS_DISPLAY_DURATION = 8000;
+const BONUS_PELLET_THRESHOLDS = [180, 140, 100, 60, 30]; // spawn at these pellet counts
+let bonusThresholdIndex = 0;
+const BONUS_POINTS = [100, 200, 300, 500, 700];
 const FRIGHTENED_CORNERS = [
   { row: 1, col: 1 },
   { row: 1, col: 27 },
@@ -65,6 +99,7 @@ const COLS = wallMap[0].length;
 
 canvas.width  = COLS * TILE_SIZE;
 canvas.height = ROWS * TILE_SIZE;
+resizeCanvas();
 
 // 0 = none, 1 = pellet, 2 = power pellet
 const pelletMap = [];
@@ -510,6 +545,8 @@ function resetPositions() {
   powerMode.active = false;
   powerMode.timer = 0;
   powerMode.ghostsEaten = 0;
+  ghostEatFreeze.active = false;
+  ghostEatFreeze.timer = 0;
   gameStartTime = performance.now();
   readyTimer = startDelay;
   gameState = 'ready';
@@ -522,6 +559,8 @@ function resetGame() {
   modeTimer.current = 'scatter';
   modeTimer.elapsed = 0;
   modeTimer.currentIntervalIndex = 0;
+  bonusItem.active = false;
+  bonusThresholdIndex = 0;
   initializePellets();
   resetPositions();
 }
@@ -567,9 +606,16 @@ function checkGhostCollision() {
         ghost.state = 'eaten';
         const basePoints = 200;
         const multiplier = Math.pow(2, powerMode.ghostsEaten); // 1,2,4,8
-        score += basePoints * multiplier;
+        const earnedPoints = basePoints * multiplier;
+        score += earnedPoints;
         powerMode.ghostsEaten = Math.min(powerMode.ghostsEaten + 1, 3);
-        console.log(`Pac-Man ate ${ghost.name}! +${basePoints * multiplier} points`);
+        // Freeze the game briefly to show the eat
+        ghostEatFreeze.active = true;
+        ghostEatFreeze.timer = ghostEatFreeze.duration;
+        ghostEatFreeze.points = earnedPoints;
+        ghostEatFreeze.x = ghost.x;
+        ghostEatFreeze.y = ghost.y;
+        console.log(`Pac-Man ate ${ghost.name}! +${earnedPoints} points`);
       } else if (ghost.state === 'chase' || ghost.state === 'scatter') {
         if (gameState === 'playing') {
           gameState = 'dying';
@@ -677,6 +723,67 @@ function countRemainingPellets() {
     }
   }
   return remaining;
+}
+
+function spawnBonusItem() {
+  // Pick a random valid open tile for the bonus
+  const validTiles = [];
+  for (let r = 1; r < ROWS - 1; r++) {
+    for (let c = 1; c < COLS - 1; c++) {
+      if (wallMap[r][c] === 0 && pelletMap[r][c] === 0 &&
+          !(r >= 12 && r <= 16 && c >= 11 && c <= 17)) { // not in ghost house
+        validTiles.push({ r, c });
+      }
+    }
+  }
+  if (validTiles.length === 0) return;
+  const tile = validTiles[Math.floor(Math.random() * validTiles.length)];
+  const idx = Math.min(bonusThresholdIndex, BONUS_POINTS.length - 1);
+  bonusItem.active = true;
+  bonusItem.row = tile.r;
+  bonusItem.col = tile.c;
+  const pos = pelletAlignedPos(tile.c, tile.r);
+  bonusItem.x = pos.x;
+  bonusItem.y = pos.y;
+  bonusItem.emoji = DATA_EMOJIS[Math.floor(Math.random() * DATA_EMOJIS.length)];
+  bonusItem.points = BONUS_POINTS[idx];
+  bonusItem.timer = BONUS_DISPLAY_DURATION;
+  bonusThresholdIndex++;
+}
+
+function updateBonusItem(deltaMs) {
+  if (bonusItem.active) {
+    bonusItem.timer -= deltaMs;
+    if (bonusItem.timer <= 0) {
+      bonusItem.active = false;
+    }
+    // Check if PacMan collected it
+    if (pacMan.row === bonusItem.row && pacMan.col === bonusItem.col) {
+      score += bonusItem.points;
+      bonusItem.active = false;
+    }
+  }
+  // Spawn based on pellet thresholds
+  if (!bonusItem.active && bonusThresholdIndex < BONUS_PELLET_THRESHOLDS.length) {
+    const remaining = countRemainingPellets();
+    if (remaining <= BONUS_PELLET_THRESHOLDS[bonusThresholdIndex]) {
+      spawnBonusItem();
+    }
+  }
+}
+
+function drawBonusItem() {
+  if (!bonusItem.active) return;
+  const now = performance.now();
+  // Blink when about to disappear (last 2 seconds)
+  if (bonusItem.timer < 2000 && Math.floor(now / 200) % 2 === 0) return;
+  const fontSize = TILE_SIZE * 1.1;
+  ctx.font = `${fontSize}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(bonusItem.emoji, bonusItem.x, bonusItem.y);
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'alphabetic';
 }
 
 function drawMaze() {
@@ -841,11 +948,11 @@ function drawPacMan() {
   }
 
   const angleForDir = (() => {
-    if (pacMan.dir.x === 1) return 0; // right
-    if (pacMan.dir.x === -1) return Math.PI; // left
-    if (pacMan.dir.y === -1) return -Math.PI / 2; // up
-    if (pacMan.dir.y === 1) return Math.PI / 2; // down
-    return 0; // default facing right when idle
+    if (pacMan.dir.x === 1) return 0;
+    if (pacMan.dir.x === -1) return Math.PI;
+    if (pacMan.dir.y === -1) return -Math.PI / 2;
+    if (pacMan.dir.y === 1) return Math.PI / 2;
+    return 0;
   })();
 
   const deathAnimTime =
@@ -854,21 +961,64 @@ function drawPacMan() {
       : DEATH_ANIMATION_DURATION;
   const deathScale =
     gameState === 'dying' ? Math.max(0, deathAnimTime / DEATH_ANIMATION_DURATION) : 1;
+
+  const r = pacMan.radius * deathScale;
+  const x = pacMan.x;
+  const y = pacMan.y;
+
+  // Data-themed PacMan: pie chart with animated "eating" slice
   const mouthWedge = gameState === 'dying'
     ? Math.PI * (1.2 + (1 - deathScale) * 1.0)
-    : Math.PI / 4; // open wider as death progresses
+    : (pacMan.mouthOpen ? Math.PI / 4 : 0);
 
-  ctx.beginPath();
-  if (pacMan.mouthOpen || gameState === 'dying') {
-    const start = angleForDir + mouthWedge / 2;
-    const end = angleForDir - mouthWedge / 2 + Math.PI * 2;
-    ctx.moveTo(pacMan.x, pacMan.y);
-    ctx.arc(pacMan.x, pacMan.y, pacMan.radius * deathScale, start, end);
+  // Draw pie chart slices (the "body")
+  const sliceColors = ['#FFD700', '#FF8C00', '#FFA500'];
+  const sliceAngles = [0.45, 0.30, 0.25]; // proportions of the pie
+
+  if (mouthWedge > 0) {
+    // Mouth open: draw pie slices with a gap
+    const gapStart = angleForDir - mouthWedge / 2;
+    const gapEnd = angleForDir + mouthWedge / 2;
+    const availableAngle = Math.PI * 2 - mouthWedge;
+    let currentAngle = gapEnd;
+    for (let i = 0; i < sliceColors.length; i++) {
+      const sliceAngle = sliceAngles[i] * availableAngle;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.arc(x, y, r, currentAngle, currentAngle + sliceAngle);
+      ctx.closePath();
+      ctx.fillStyle = sliceColors[i];
+      ctx.fill();
+      // Slice border
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      currentAngle += sliceAngle;
+    }
   } else {
-    ctx.arc(pacMan.x, pacMan.y, pacMan.radius * deathScale, 0, Math.PI * 2);
+    // Mouth closed: full pie chart
+    let currentAngle = angleForDir;
+    for (let i = 0; i < sliceColors.length; i++) {
+      const sliceAngle = sliceAngles[i] * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.arc(x, y, r, currentAngle, currentAngle + sliceAngle);
+      ctx.closePath();
+      ctx.fillStyle = sliceColors[i];
+      ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      currentAngle += sliceAngle;
+    }
   }
-  ctx.fillStyle = pacMan.color;
-  ctx.fill();
+
+  // Outer ring to give it a polished look
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 1;
+  ctx.stroke();
   ctx.closePath();
 }
 
@@ -999,6 +1149,204 @@ function updateGhosts() {
   }
 }
 
+// Data-themed ghost shapes: each ghost is a different data visualization icon
+function drawDataBug(ghost, color, x, y, r) {
+  // "Bug" = a database cylinder shape
+  const name = ghost.name;
+  if (name === 'blinky') {
+    drawBarChartGhost(x, y, r, color, ghost.dir);
+  } else if (name === 'pinky') {
+    drawDatabaseGhost(x, y, r, color, ghost.dir);
+  } else if (name === 'inky') {
+    drawScatterPlotGhost(x, y, r, color, ghost.dir);
+  } else {
+    drawCursorGhost(x, y, r, color, ghost.dir);
+  }
+}
+
+function drawBarChartGhost(x, y, r, color, dir) {
+  // Mini bar chart shape
+  const w = r * 1.6;
+  const h = r * 1.6;
+  const left = x - w / 2;
+  const top = y - h / 2;
+  const barW = w / 5;
+  const heights = [0.6, 1.0, 0.4, 0.8];
+
+  // Background rounded rect
+  ctx.beginPath();
+  const rr = r * 0.3;
+  ctx.moveTo(left + rr, top);
+  ctx.lineTo(left + w - rr, top);
+  ctx.quadraticCurveTo(left + w, top, left + w, top + rr);
+  ctx.lineTo(left + w, top + h - rr);
+  ctx.quadraticCurveTo(left + w, top + h, left + w - rr, top + h);
+  ctx.lineTo(left + rr, top + h);
+  ctx.quadraticCurveTo(left, top + h, left, top + h - rr);
+  ctx.lineTo(left, top + rr);
+  ctx.quadraticCurveTo(left, top, left + rr, top);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff40';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Bars
+  const barArea = h * 0.7;
+  const barBottom = top + h * 0.85;
+  for (let i = 0; i < 4; i++) {
+    const bx = left + w * 0.12 + i * (barW + w * 0.04);
+    const bh = barArea * heights[i];
+    ctx.fillStyle = `rgba(255,255,255,${0.6 + i * 0.1})`;
+    ctx.fillRect(bx, barBottom - bh, barW, bh);
+  }
+
+  // Eyes on top bar area
+  drawGhostEyes(x, y - r * 0.15, r * 0.5, dir);
+}
+
+function drawDatabaseGhost(x, y, r, color, dir) {
+  // Database cylinder
+  const w = r * 1.2;
+  const h = r * 1.6;
+  const top = y - h / 2;
+  const ellipseH = h * 0.18;
+
+  // Cylinder body
+  ctx.beginPath();
+  ctx.moveTo(x - w, top + ellipseH);
+  ctx.lineTo(x - w, top + h - ellipseH);
+  ctx.ellipse(x, top + h - ellipseH, w, ellipseH, 0, Math.PI, 0, true);
+  ctx.lineTo(x + w, top + ellipseH);
+  ctx.ellipse(x, top + ellipseH, w, ellipseH, 0, 0, Math.PI, true);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff40';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Top ellipse
+  ctx.beginPath();
+  ctx.ellipse(x, top + ellipseH, w, ellipseH, 0, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff60';
+  ctx.stroke();
+
+  // Middle lines (data rows)
+  for (let i = 1; i <= 2; i++) {
+    const ly = top + ellipseH + (h - 2 * ellipseH) * (i / 3);
+    ctx.beginPath();
+    ctx.ellipse(x, ly, w, ellipseH * 0.6, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffffff30';
+    ctx.stroke();
+  }
+
+  // Eyes
+  drawGhostEyes(x, y - r * 0.1, r * 0.5, dir);
+}
+
+function drawScatterPlotGhost(x, y, r, color, dir) {
+  // Scatter plot / data point cluster in a diamond shape
+  const s = r * 1.4;
+
+  // Diamond body
+  ctx.beginPath();
+  ctx.moveTo(x, y - s);
+  ctx.lineTo(x + s, y);
+  ctx.lineTo(x, y + s);
+  ctx.lineTo(x - s, y);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff40';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Scatter dots
+  const dots = [
+    { dx: -0.3, dy: 0.3 },
+    { dx: 0.3, dy: -0.3 },
+    { dx: -0.15, dy: -0.15 },
+    { dx: 0.4, dy: 0.15 },
+    { dx: -0.05, dy: 0.4 }
+  ];
+  for (const d of dots) {
+    ctx.beginPath();
+    ctx.arc(x + d.dx * r, y + d.dy * r, r * 0.08, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff80';
+    ctx.fill();
+  }
+
+  // Eyes
+  drawGhostEyes(x, y - r * 0.15, r * 0.5, dir);
+}
+
+function drawCursorGhost(x, y, r, color, dir) {
+  // Cursor / pointer shape (data selector)
+  const s = r * 1.4;
+
+  // Hexagon body
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6;
+    const px = x + s * Math.cos(angle);
+    const py = y + s * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff40';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Small trend line inside
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.5, y + r * 0.3);
+  ctx.lineTo(x - r * 0.15, y + r * 0.1);
+  ctx.lineTo(x + r * 0.15, y + r * 0.35);
+  ctx.lineTo(x + r * 0.5, y - r * 0.1);
+  ctx.strokeStyle = '#ffffff80';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Eyes
+  drawGhostEyes(x, y - r * 0.2, r * 0.5, dir);
+}
+
+function drawGhostEyes(x, y, scale, dir) {
+  const eyeOffsetX = scale * 0.7;
+  const eyeRX = scale * 0.35;
+  const eyeRY = scale * 0.45;
+  const pupilR = scale * 0.2;
+  const d = (dir.x === 0 && dir.y === 0) ? { x: 1, y: 0 } : dir;
+  const mag = Math.hypot(d.x, d.y) || 1;
+  const pupilOX = (d.x / mag) * scale * 0.18;
+  const pupilOY = (d.y / mag) * scale * 0.18;
+
+  // White of eyes
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.ellipse(x - eyeOffsetX, y, eyeRX, eyeRY, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x + eyeOffsetX, y, eyeRX, eyeRY, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pupils
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.ellipse(x - eyeOffsetX + pupilOX, y + pupilOY, pupilR, pupilR, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x + eyeOffsetX + pupilOX, y + pupilOY, pupilR, pupilR, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawGhosts() {
   for (const ghost of ghosts) {
     if (ghost.x === undefined || ghost.y === undefined) {
@@ -1013,116 +1361,30 @@ function drawGhosts() {
     const color = isFrightened ? (flash ? 'white' : '#0011cc') : ghost.color;
 
     if (isEaten) {
-      ctx.beginPath();
-      ctx.arc(ghost.x - ghost.radius * 0.3, ghost.y, ghost.radius * 0.3, 0, Math.PI * 2);
-      ctx.arc(ghost.x + ghost.radius * 0.3, ghost.y, ghost.radius * 0.3, 0, Math.PI * 2);
-      ctx.fillStyle = 'white';
-      ctx.fill();
-      ctx.closePath();
-    } else {
+      // Just eyes floating back
+      drawGhostEyes(ghost.x, ghost.y, ghost.radius * 0.5, ghost.dir);
+    } else if (isFrightened) {
+      // Frightened: draw as a glitchy/corrupted data blob
       const r = ghost.radius;
-      const left = ghost.x - r;
-      const right = ghost.x + r;
-      const bottomY = ghost.y + r;
-      const bumps = 3;
-      const bumpWidth = (2 * r) / bumps;
-      const bumpHeight = r * 0.3;
-
-      // Body with rounded head and wavy skirt
       ctx.beginPath();
-      ctx.moveTo(left, bottomY);
-      for (let i = 0; i < bumps; i++) {
-        const startX = left + i * bumpWidth;
-        const midX = startX + bumpWidth / 2;
-        const endX = startX + bumpWidth;
-        ctx.quadraticCurveTo(midX, bottomY - bumpHeight, endX, bottomY);
-      }
-      ctx.lineTo(right, ghost.y);
-      ctx.arc(ghost.x, ghost.y, r, 0, Math.PI, true);
-      ctx.lineTo(left, ghost.y);
-      ctx.closePath();
+      ctx.arc(ghost.x, ghost.y, r, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-
-      // Eyes
-      const eyeOffsetX = r * 0.35;
-      const eyeOffsetY = -r * 0.2;
-      const eyeRadiusX = r * 0.22;
-      const eyeRadiusY = r * 0.28;
-      const pupilRadius = r * 0.12;
-      const dir =
-        ghost.dir.x === 0 && ghost.dir.y === 0 ? { x: 1, y: 0 } : ghost.dir;
-      const mag = Math.hypot(dir.x, dir.y) || 1;
-      const pupilOffsetX = (dir.x / mag) * r * 0.12;
-      const pupilOffsetY = (dir.y / mag) * r * 0.12;
-
-      ctx.fillStyle = 'white';
+      ctx.closePath();
+      // Wavy distortion lines
+      ctx.strokeStyle = flash ? '#0011cc' : 'white';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.ellipse(
-        ghost.x - eyeOffsetX,
-        ghost.y + eyeOffsetY,
-        eyeRadiusX,
-        eyeRadiusY,
-        0,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(
-        ghost.x + eyeOffsetX,
-        ghost.y + eyeOffsetY,
-        eyeRadiusX,
-        eyeRadiusY,
-        0,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-
-      ctx.fillStyle = 'black';
-      ctx.beginPath();
-      ctx.ellipse(
-        ghost.x - eyeOffsetX + pupilOffsetX,
-        ghost.y + eyeOffsetY + pupilOffsetY,
-        pupilRadius,
-        pupilRadius,
-        0,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(
-        ghost.x + eyeOffsetX + pupilOffsetX,
-        ghost.y + eyeOffsetY + pupilOffsetY,
-        pupilRadius,
-        pupilRadius,
-        0,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-    }
-
-    if (DEBUG_SHOW_TARGETS) {
-      // const target = getGhostTarget(ghost);
-      // const targetPos = pelletAlignedPos(target.col, target.row);
-
-      // // Line to target
-      // ctx.strokeStyle = ghost.color + '80'; // add alpha
-      // ctx.beginPath();
-      // ctx.moveTo(ghost.x, ghost.y);
-      // ctx.lineTo(targetPos.x, targetPos.y);
-      // ctx.stroke();
-      // ctx.closePath();
-
-      // // Target marker
-      // ctx.beginPath();
-      // ctx.arc(targetPos.x, targetPos.y, TILE_SIZE * 0.2, 0, Math.PI * 2);
-      // ctx.fillStyle = ghost.color + '80';
-      // ctx.fill();
-      // ctx.closePath();
+      for (let i = 0; i < 3; i++) {
+        const ly = ghost.y - r * 0.4 + i * r * 0.4;
+        ctx.moveTo(ghost.x - r * 0.5, ly);
+        ctx.quadraticCurveTo(ghost.x, ly + (i % 2 === 0 ? -3 : 3), ghost.x + r * 0.5, ly);
+      }
+      ctx.stroke();
+      // Frightened eyes (simple)
+      drawGhostEyes(ghost.x, ghost.y - r * 0.15, r * 0.4, ghost.dir);
+    } else {
+      drawDataBug(ghost, color, ghost.x, ghost.y, ghost.radius);
     }
   }
 }
@@ -1132,9 +1394,42 @@ function gameLoop() {
   const deltaMs = now - (gameLoop.lastTime || now);
   gameLoop.lastTime = now;
 
+  // Handle ghost-eat freeze: pause all game updates, just render
+  if (ghostEatFreeze.active) {
+    ghostEatFreeze.timer -= deltaMs;
+    if (ghostEatFreeze.timer <= 0) {
+      ghostEatFreeze.active = false;
+    }
+    // Still draw everything, but show the score popup
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawMaze();
+    drawPellets();
+    drawBonusItem();
+    drawPacMan();
+    drawGhosts();
+
+    // Score popup at the eat location
+    ctx.fillStyle = '#00ffff';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${ghostEatFreeze.points}`, ghostEatFreeze.x, ghostEatFreeze.y);
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+
+    // Still draw HUD
+    ctx.fillStyle = 'white';
+    ctx.font = '20px Arial';
+    ctx.fillText(`Score: ${score}`, 10, 25);
+    drawLivesIcons();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
   if (gameState === 'playing') {
     updatePowerMode(deltaMs);
     updateModeTimer(deltaMs);
+    updateBonusItem(deltaMs);
 
     if (countRemainingPellets() === 0) {
       gameState = 'won';
@@ -1145,6 +1440,7 @@ function gameLoop() {
 
   drawMaze();
   drawPellets();
+  drawBonusItem();
   if (gameState === 'playing') {
     updateGhosts();
     updatePacMan();
@@ -1158,28 +1454,8 @@ function gameLoop() {
   ctx.fillStyle = 'white';
   ctx.font = '20px Arial';
   ctx.fillText(`Score: ${score}`, 10, 25);
-  if (DEBUG_SHOW_TARGETS) {
-    // const modeLabel = modeTimer.current.toUpperCase();
-    // const remaining =
-    //   modeTimer.currentIntervalIndex < modeTimer.intervals.length
-    //     ? Math.max(0, Math.ceil((modeTimer.intervals[modeTimer.currentIntervalIndex] - modeTimer.elapsed) / 100) / 10)
-    //     : '∞';
-    // ctx.fillText(`Mode: ${modeLabel} (${remaining}s)`, 10, 50);
-  }
 
-  // Lives display (do not count the current life)
-  const iconRadius = TILE_SIZE * 0.4;
-  const startX = 10;
-  const startY = canvas.height - iconRadius - 6; // sit just above bottom edge without covering maze walls
-  const spacing = 25;
-  ctx.fillStyle = 'yellow';
-  for (let i = 0; i < Math.max(0, lives - 1); i++) {
-    const x = startX + i * spacing;
-    ctx.beginPath();
-    ctx.arc(x, startY, iconRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.closePath();
-  }
+  drawLivesIcons();
 
   if (gameState === 'won') {
     handleWin();
@@ -1192,6 +1468,30 @@ function gameLoop() {
   }
 
   requestAnimationFrame(gameLoop);
+}
+
+function drawLivesIcons() {
+  const iconRadius = TILE_SIZE * 0.4;
+  const startX = 10;
+  const startY = canvas.height - iconRadius - 6;
+  const spacing = 25;
+  // Draw mini pie charts for lives
+  const sliceColors = ['#FFD700', '#FF8C00', '#FFA500'];
+  for (let i = 0; i < Math.max(0, lives - 1); i++) {
+    const x = startX + i * spacing;
+    let angle = 0;
+    const proportions = [0.45, 0.30, 0.25];
+    for (let j = 0; j < sliceColors.length; j++) {
+      const sliceAngle = proportions[j] * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(x, startY);
+      ctx.arc(x, startY, iconRadius, angle, angle + sliceAngle);
+      ctx.closePath();
+      ctx.fillStyle = sliceColors[j];
+      ctx.fill();
+      angle += sliceAngle;
+    }
+  }
 }
 
 gameLoop();
