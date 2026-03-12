@@ -615,7 +615,7 @@ function checkGhostCollision() {
         ghostEatFreeze.points = earnedPoints;
         ghostEatFreeze.x = ghost.x;
         ghostEatFreeze.y = ghost.y;
-        console.log(`Data Muncher cleaned ${ghost.name}! +${earnedPoints} points`);
+        console.log(`Pie Man cleaned ${ghost.name}! +${earnedPoints} points`);
       } else if (ghost.state === 'chase' || ghost.state === 'scatter') {
         if (gameState === 'playing') {
           gameState = 'dying';
@@ -726,23 +726,14 @@ function countRemainingPellets() {
 }
 
 function spawnBonusItem() {
-  // Pick a random valid open tile for the bonus
-  const validTiles = [];
-  for (let r = 1; r < ROWS - 1; r++) {
-    for (let c = 1; c < COLS - 1; c++) {
-      if (wallMap[r][c] === 0 && pelletMap[r][c] === 0 &&
-          !(r >= 12 && r <= 16 && c >= 11 && c <= 17)) { // not in ghost house
-        validTiles.push({ r, c });
-      }
-    }
-  }
-  if (validTiles.length === 0) return;
-  const tile = validTiles[Math.floor(Math.random() * validTiles.length)];
+  // Always spawn below the ghost house (fixed position, like classic Pac-Man fruit)
+  const spawnRow = 17;
+  const spawnCol = 14;
   const idx = Math.min(bonusThresholdIndex, BONUS_POINTS.length - 1);
   bonusItem.active = true;
-  bonusItem.row = tile.r;
-  bonusItem.col = tile.c;
-  const pos = pelletAlignedPos(tile.c, tile.r);
+  bonusItem.row = spawnRow;
+  bonusItem.col = spawnCol;
+  const pos = pelletAlignedPos(spawnCol, spawnRow);
   bonusItem.x = pos.x;
   bonusItem.y = pos.y;
   bonusItem.emoji = DATA_EMOJIS[Math.floor(Math.random() * DATA_EMOJIS.length)];
