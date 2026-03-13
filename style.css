@@ -31,6 +31,12 @@ canvas {
 .dpad-mid {
     display: flex;
     gap: 4px;
+    align-items: center;
+}
+
+.dpad-center {
+    width: 56px;
+    height: 56px;
 }
 
 .dpad-btn {
