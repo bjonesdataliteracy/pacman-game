@@ -12,8 +12,10 @@ const ghostEatFreeze = { active: false, timer: 0, duration: 500, points: 0, x: 0
 function resizeCanvas() {
   const gameW = COLS ? COLS * TILE_SIZE : 696;
   const gameH = ROWS ? ROWS * TILE_SIZE : 744;
+  const isTouchDevice = matchMedia('(pointer: coarse)').matches || matchMedia('(hover: none)').matches;
+  const availH = isTouchDevice ? window.innerHeight - 180 : window.innerHeight;
   const scaleX = window.innerWidth / gameW;
-  const scaleY = window.innerHeight / gameH;
+  const scaleY = availH / gameH;
   const scale = Math.min(scaleX, scaleY);
   canvas.style.width = (gameW * scale) + 'px';
   canvas.style.height = (gameH * scale) + 'px';
@@ -831,6 +833,32 @@ window.addEventListener('keydown', (e) => {
     }
   }
 });
+
+// D-Pad touch controls
+(function initDpad() {
+  const dirs = {
+    'dpad-up':    { x: 0,  y: -1 },
+    'dpad-down':  { x: 0,  y: 1 },
+    'dpad-left':  { x: -1, y: 0 },
+    'dpad-right': { x: 1,  y: 0 }
+  };
+  Object.keys(dirs).forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      pacMan.nextDir = dirs[id];
+    }, { passive: false });
+  });
+
+  // Tap canvas to restart on game over / won (replaces Space on mobile)
+  canvas.addEventListener('touchstart', function(e) {
+    if (gameState === 'gameover' || gameState === 'won') {
+      e.preventDefault();
+      resetGame();
+    }
+  }, { passive: false });
+})();
 
 function updatePacMan(deltaMs) {
   const aligned = pelletAlignedPos(pacMan.col, pacMan.row);
