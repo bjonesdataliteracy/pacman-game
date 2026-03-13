@@ -431,7 +431,13 @@ function chooseNextDirection(ghost, targetRow, targetCol) {
   ].filter((d) => !(d.x === opposite.x && d.y === opposite.y));
 
   const valid = candidates.filter((d) => canTraverseEdge(ghost.row, ghost.col, d, ghost));
-  if (!valid.length) return { x: 0, y: 0 };
+  if (!valid.length) {
+    // Dead end: reverse direction (fallback to avoid getting stuck)
+    if (canTraverseEdge(ghost.row, ghost.col, opposite, ghost)) {
+      return opposite;
+    }
+    return { x: 0, y: 0 };
+  }
 
   let best = valid[0];
   let bestDist = Infinity;
